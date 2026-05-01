@@ -2,6 +2,8 @@
 // word list. Run once from the backend/ directory:
 //
 //	go run ./seed
+//
+// Safe to re-run: it drops and recreates the collection each time.
 package main
 
 import (
@@ -19,6 +21,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// wordListURL points to the raw JSON file in the rypmaloney/wordle-api repo.
+// All words in this file are already exactly 5 letters.
 const wordListURL = "https://raw.githubusercontent.com/rypmaloney/wordle-api/main/lists/goodWords.json"
 
 type definition struct {
@@ -32,6 +36,7 @@ type rawWord struct {
 }
 
 func main() {
+	// Load .env from the backend/ directory (where this command is run from).
 	if err := godotenv.Load(".env"); err != nil {
 		log.Println("no .env file found, reading from environment")
 	}
@@ -50,7 +55,7 @@ func main() {
 	}
 	fmt.Println("Connected to MongoDB.")
 
-	// Fetch word list from GitHub
+	// Download the word list directly from GitHub at runtime.
 	resp, err := http.Get(wordListURL)
 	if err != nil {
 		log.Fatal("fetch word list:", err)
@@ -63,7 +68,7 @@ func main() {
 	}
 	fmt.Printf("Fetched %d words.\n", len(raw))
 
-	// Build BSON documents
+	// Flatten each word + its first definition into a BSON document.
 	docs := make([]interface{}, 0, len(raw))
 	for _, rw := range raw {
 		def, pos := "", ""
@@ -80,7 +85,7 @@ func main() {
 
 	coll := client.Database(os.Getenv("MONGODB_DB")).Collection("words")
 
-	// Drop existing data so re-runs are idempotent
+	// Drop first so re-runs are idempotent and don't create duplicates.
 	if err := coll.Drop(ctx); err != nil {
 		log.Fatal("drop collection:", err)
 	}
@@ -91,7 +96,8 @@ func main() {
 	}
 	fmt.Printf("Inserted %d words into the words collection.\n", len(result.InsertedIDs))
 
-	// Unique index on word field for fast lookups and validation
+	// A unique index on the word field makes validation queries fast (O(log n))
+	// and prevents duplicate entries if the seed is ever modified.
 	_, err = coll.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "word", Value: 1}},
 		Options: options.Index().SetUnique(true),

@@ -16,13 +16,18 @@ type leaderboardEntry struct {
 	Rank   int    `json:"rank"`
 	Name   string `json:"name"`
 	Avatar string `json:"avatar"`
-	Score  int    `json:"score"`
+	Score  int    `json:"score"` // meaning depends on which leaderboard is requested
 }
 
+// leaderboard is a shared helper called by both public endpoints.
+// sortField is the MongoDB field name to sort by ("longestStreak" or "totalSolved").
 func leaderboard(w http.ResponseWriter, r *http.Request, sortField string) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
+	// Fetch only the top 10 players, sorted descending by the chosen field.
+	// The projection limits what MongoDB sends over the wire — we only need
+	// name, avatar, and the sort field to build the leaderboard row.
 	opts := options.Find().
 		SetSort(bson.D{{Key: sortField, Value: -1}}).
 		SetLimit(10).
@@ -41,6 +46,7 @@ func leaderboard(w http.ResponseWriter, r *http.Request, sortField string) {
 		return
 	}
 
+	// Map each user to a leaderboard row with a 1-based rank.
 	entries := make([]leaderboardEntry, 0, len(users))
 	for i, u := range users {
 		score := u.LongestStreak
@@ -58,12 +64,12 @@ func leaderboard(w http.ResponseWriter, r *http.Request, sortField string) {
 	writeJSON(w, map[string]interface{}{"leaderboard": entries})
 }
 
-// LeaderboardStreak returns top 10 players by longest streak.
+// LeaderboardStreak returns the top 10 players by longest win streak.
 func LeaderboardStreak(w http.ResponseWriter, r *http.Request) {
 	leaderboard(w, r, "longestStreak")
 }
 
-// LeaderboardTotal returns top 10 players by total words solved.
+// LeaderboardTotal returns the top 10 players by total words solved.
 func LeaderboardTotal(w http.ResponseWriter, r *http.Request) {
 	leaderboard(w, r, "totalSolved")
 }

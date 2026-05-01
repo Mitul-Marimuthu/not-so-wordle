@@ -13,7 +13,8 @@ import (
 	"wordle/backend/models"
 )
 
-// GetProfile returns the authenticated user's stats and full game history.
+// GetProfile returns the full user document for the authenticated player:
+// stats (totalSolved, streaks) and the complete game history with dates.
 func GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	oid, err := primitive.ObjectIDFromHex(userID)
@@ -31,5 +32,7 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The User struct's json tags control what the frontend receives.
+	// solvedWords is included here but the frontend can ignore it if not needed.
 	writeJSON(w, user)
 }

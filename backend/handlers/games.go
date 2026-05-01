@@ -19,15 +19,18 @@ import (
 	"wordle/backend/models"
 )
 
+// writeJSON is a small helper that sets the Content-Type header and encodes
+// the value as JSON. Used by every handler that returns data.
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
 }
 
 // NewGame starts a fresh game for the authenticated user.
-// If an in-progress game already exists, it returns that game's ID instead
-// of creating a duplicate.
+// If the player already has an in-progress game it returns that instead of
+// creating a duplicate — one active game per user at a time.
 func NewGame(w http.ResponseWriter, r *http.Request) {
+	// Pull the user ID that RequireAuth stored in the context.
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	oid, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
@@ -38,7 +41,7 @@ func NewGame(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Return existing in-progress game if one exists
+	// Return the existing game rather than silently creating a second one.
 	var existing models.Game
 	err = db.Collection("games").FindOne(ctx, bson.M{
 		"userId": oid,
@@ -49,13 +52,14 @@ func NewGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch user's solved words for weighted selection
+	// Load the user's solved words so SelectWord can weight fresh words higher.
 	var user models.User
 	if err := db.Collection("users").FindOne(ctx, bson.M{"_id": oid}).Decode(&user); err != nil {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
 
+	// SelectWord picks a word the player hasn't seen (or rarely seen) before.
 	word, err := game.SelectWord(ctx, user.SolvedWords)
 	if err != nil {
 		http.Error(w, "failed to select word", http.StatusInternalServerError)
@@ -65,7 +69,7 @@ func NewGame(w http.ResponseWriter, r *http.Request) {
 	g := models.Game{
 		ID:        primitive.NewObjectID(),
 		UserID:    oid,
-		Word:      word,
+		Word:      word, // stored in DB but NEVER returned to the frontend
 		Guesses:   []models.GuessResult{},
 		Status:    models.StatusInProgress,
 		StartedAt: time.Now(),
@@ -78,7 +82,9 @@ func NewGame(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"gameId": g.ID.Hex(), "status": string(g.Status)})
 }
 
-// SubmitGuess validates a guess against the active game and returns tile results.
+// SubmitGuess validates a guess against the active game and returns tile feedback.
+// The response always includes the per-letter result array. The target word is
+// only included once the game is finished (won or lost).
 func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	oid, err := primitive.ObjectIDFromHex(userID)
@@ -87,6 +93,7 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse the game ID from the URL path parameter (/api/games/{id}/guess).
 	goid, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "invalid game id", http.StatusBadRequest)
@@ -100,6 +107,7 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
+	// Normalise: lowercase and trim whitespace so "CRANE " == "crane".
 	guess := strings.ToLower(strings.TrimSpace(body.Guess))
 	if len([]rune(guess)) != 5 {
 		http.Error(w, "guess must be exactly 5 letters", http.StatusBadRequest)
@@ -109,6 +117,7 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
+	// Fetch the game and make sure it belongs to this user.
 	var g models.Game
 	if err := db.Collection("games").FindOne(ctx, bson.M{"_id": goid, "userId": oid}).Decode(&g); err != nil {
 		http.Error(w, "game not found", http.StatusNotFound)
@@ -119,18 +128,19 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate the guess is a known word
+	// Reject guesses that aren't in our word list — same rule as the real Wordle.
 	count, err := db.Collection("words").CountDocuments(ctx, bson.M{"word": guess})
 	if err != nil || count == 0 {
 		http.Error(w, "not a valid word", http.StatusUnprocessableEntity)
 		return
 	}
 
+	// Core game logic: compute the green/yellow/gray result.
 	result := game.EvaluateGuess(guess, g.Word)
 	entry := models.GuessResult{Guess: guess, Result: result, Timestamp: time.Now()}
 
 	won := guess == g.Word
-	lost := !won && len(g.Guesses)+1 >= 6
+	lost := !won && len(g.Guesses)+1 >= 6 // 6 guesses used and still wrong
 
 	status := models.StatusInProgress
 	if won {
@@ -139,7 +149,7 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 		status = models.StatusLost
 	}
 
-	// Update game record
+	// Persist the new guess and (if applicable) the final status.
 	now := time.Now()
 	setFields := bson.M{"status": status}
 	if status != models.StatusInProgress {
@@ -150,8 +160,9 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 		"$set":  setFields,
 	})
 
-	// Update user stats
+	// Update the player's profile stats now that the game is decided.
 	if status == models.StatusWon {
+		// Fetch current streak to correctly compute the new longest streak.
 		var u models.User
 		db.Collection("users").FindOne(ctx, bson.M{"_id": oid}).Decode(&u)
 		newStreak := u.CurrentStreak + 1
@@ -162,7 +173,7 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 		db.Collection("users").UpdateOne(ctx, bson.M{"_id": oid}, bson.M{
 			"$inc":      bson.M{"totalSolved": 1},
 			"$set":      bson.M{"currentStreak": newStreak, "longestStreak": newLongest},
-			"$addToSet": bson.M{"solvedWords": g.Word},
+			"$addToSet": bson.M{"solvedWords": g.Word},  // $addToSet avoids duplicates
 			"$push": bson.M{"history": models.SolvedEntry{
 				Word:    g.Word,
 				Date:    now,
@@ -170,6 +181,7 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 			}},
 		})
 	} else if status == models.StatusLost {
+		// Streak resets to 0 on any loss.
 		db.Collection("users").UpdateOne(ctx, bson.M{"_id": oid},
 			bson.M{"$set": bson.M{"currentStreak": 0}})
 	}
@@ -179,14 +191,15 @@ func SubmitGuess(w http.ResponseWriter, r *http.Request) {
 		"status":      status,
 		"guessNumber": len(g.Guesses) + 1,
 	}
+	// Only reveal the answer once the game is over.
 	if status != models.StatusInProgress {
 		resp["word"] = g.Word
 	}
 	writeJSON(w, resp)
 }
 
-// GetGame returns the current state of a game (without revealing the word
-// unless the game is finished).
+// GetGame returns the state of a game so the frontend can restore it on refresh.
+// The target word is excluded from the projection unless the game is finished.
 func GetGame(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	oid, err := primitive.ObjectIDFromHex(userID)
@@ -204,7 +217,7 @@ func GetGame(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	// Exclude the word field from the projection
+	// Exclude the word field at the DB level — safer than relying on json:"-" alone.
 	proj := options.FindOne().SetProjection(bson.M{"word": 0})
 	var g models.Game
 	if err := db.Collection("games").FindOne(ctx, bson.M{"_id": goid, "userId": oid}, proj).Decode(&g); err != nil {
