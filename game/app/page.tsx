@@ -21,8 +21,9 @@ function GamePage() {
   const [revealingRow, setRevealingRow] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [shake, setShake] = useState(false);
-  // Ref so the animation lock is readable synchronously by the keyboard listener
-  // without waiting for a React re-render + useEffect re-subscription cycle.
+  const [inputLocked, setInputLocked] = useState(false);
+  // Ref mirrors inputLocked so the keydown listener can check it synchronously
+  // without waiting for a React re-render cycle.
   const isRevealingRef = useRef(false);
 
   // Once auth is confirmed, start or restore a game.
@@ -78,8 +79,9 @@ function GamePage() {
         return;
       }
       // Lock before the API call so a second Enter during the network
-      // round-trip can't slip through.
+      // round-trip can't slip through (ref = physical keyboard, state = on-screen button).
       isRevealingRef.current = true;
+      setInputLocked(true);
       try {
         const row = guesses.length;
         const data = await api.submitGuess(gameId!, currentInput);
@@ -93,6 +95,7 @@ function GamePage() {
 
         setTimeout(() => {
           isRevealingRef.current = false;
+          setInputLocked(false);
           setRevealingRow(null);
           setStatus(data.status);
           if (data.status === 'won') {
@@ -106,6 +109,7 @@ function GamePage() {
       } catch (err: unknown) {
         // Unlock on error so the player can try again.
         isRevealingRef.current = false;
+        setInputLocked(false);
         const msg = err instanceof Error ? err.message : 'Something went wrong';
         if (msg.includes('not a valid word')) {
           showMessage('Not in word list');
@@ -166,7 +170,7 @@ function GamePage() {
           revealingRow={revealingRow}
           shake={shake}
         />
-        <Keyboard guesses={guesses} onKey={handleKeyPress} />
+        <Keyboard guesses={guesses} onKey={handleKeyPress} locked={inputLocked} />
         {(status === 'won' || status === 'lost') && (
           <button
             onClick={initGame}

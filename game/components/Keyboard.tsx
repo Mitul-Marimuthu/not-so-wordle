@@ -35,9 +35,10 @@ const KEY_COLORS: Record<TileState, string> = {
 interface KeyboardProps {
   guesses: GuessResult[];
   onKey: (key: string) => void;
+  locked?: boolean;
 }
 
-export default function Keyboard({ guesses, onKey }: KeyboardProps) {
+export default function Keyboard({ guesses, onKey, locked = false }: KeyboardProps) {
   const letterStates = getLetterStates(guesses);
 
   return (
@@ -51,10 +52,11 @@ export default function Keyboard({ guesses, onKey }: KeyboardProps) {
               <button
                 key={key}
                 onClick={() => onKey(key === '←' ? 'Backspace' : key)}
+                disabled={locked && key === 'Enter'}
                 className={`
                   ${isWide ? 'flex-[1.5]' : 'flex-1'} h-14 rounded font-bold text-sm
-                  border select-none cursor-pointer min-w-0
-                  active:opacity-70 transition-colors
+                  border select-none min-w-0 transition-colors
+                  ${locked && key === 'Enter' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:opacity-70'}
                   ${KEY_COLORS[state]}
                 `}
               >
