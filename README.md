@@ -123,13 +123,13 @@ When a player starts a new game, the backend selects a word using weighted rando
 This ensures players encounter new words first, while previously solved words can still reappear occasionally. Once a player has solved every word in the database, weights reset and the cycle begins again. This logic runs entirely in Go and requires no additional infrastructure.
 
 ### Guess Validation in Go (not via API)
-The green/yellow/gray computation is implemented directly in Go rather than proxied through the RapidAPI. This is deliberate — the duplicate-letter edge case (e.g. guessing `SPEED` when the answer is `SPELL`) is subtle and easy to get wrong. Owning the implementation means we can test it thoroughly and not trust a third party to handle it correctly.
+The green/yellow/gray computation is implemented directly in Go rather than proxied through the RapidAPI. This is deliberate - the duplicate-letter edge case (e.g. guessing `SPEED` when the answer is `SPELL`) is subtle and easy to get wrong. Owning the implementation means we can test it thoroughly and not trust a third party to handle it correctly.
 
 ### Streak = Consecutive Wins
 Since play is unlimited and not tied to a calendar day, streak is defined as **consecutive games won without a loss**. A streak resets the moment a player fails to guess the word within 6 tries. This is more skill-reflective than a daily streak and works naturally with unlimited play.
 
 ### Backend as a Separate Go Service
-The Go backend is deployed independently (Railway) rather than as Next.js API routes. This keeps the frontend and backend fully decoupled, allows the backend to be written in Go (the preferred language), and follows standard industry practice for fullstack applications. The Next.js frontend communicates with the Go API over HTTPS with JWT auth.
+The Go backend is deployed independently (Railway) rather than as Next.js API routes. This keeps the frontend and backend fully decoupled, allows the backend to be written in Go, and follows standard industry practice for fullstack applications. The Next.js frontend communicates with the Go API over HTTPS with JWT auth.
 
 ---
 
