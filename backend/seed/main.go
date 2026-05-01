@@ -1,4 +1,4 @@
-// Seed populates the MongoDB words collection from the rypmaloney/wordle-api
+// Seed populates the MongoDB words collection from the tabatkins/wordle-list
 // word list. Run once from the backend/ directory:
 //
 //	go run ./seed
@@ -7,12 +7,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -21,19 +22,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// wordListURL points to the raw JSON file in the rypmaloney/wordle-api repo.
-// All words in this file are already exactly 5 letters.
-const wordListURL = "https://raw.githubusercontent.com/rypmaloney/wordle-api/main/lists/goodWords.json"
-
-type definition struct {
-	Definition   string `json:"definition"`
-	PartOfSpeech string `json:"partOfSpeech"`
-}
-
-type rawWord struct {
-	Word        string       `json:"word"`
-	Definitions []definition `json:"definitions"`
-}
+// wordListURL is the original Wordle valid-guess list maintained by tabatkins.
+// Plain text, one lowercase 5-letter word per line, ~8 000 words.
+const wordListURL = "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words"
 
 func main() {
 	// Load .env from the backend/ directory (where this command is run from).
@@ -55,33 +46,27 @@ func main() {
 	}
 	fmt.Println("Connected to MongoDB.")
 
-	// Download the word list directly from GitHub at runtime.
+	// Download the plain-text word list from GitHub at runtime.
 	resp, err := http.Get(wordListURL)
 	if err != nil {
 		log.Fatal("fetch word list:", err)
 	}
 	defer resp.Body.Close()
 
-	var raw []rawWord
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		log.Fatal("decode word list:", err)
-	}
-	fmt.Printf("Fetched %d words.\n", len(raw))
-
-	// Flatten each word + its first definition into a BSON document.
-	docs := make([]interface{}, 0, len(raw))
-	for _, rw := range raw {
-		def, pos := "", ""
-		if len(rw.Definitions) > 0 {
-			def = rw.Definitions[0].Definition
-			pos = rw.Definitions[0].PartOfSpeech
+	// Read one word per line, skip blank lines.
+	var docs []interface{}
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		word := strings.TrimSpace(scanner.Text())
+		if word == "" {
+			continue
 		}
-		docs = append(docs, bson.M{
-			"word":         rw.Word,
-			"definition":   def,
-			"partOfSpeech": pos,
-		})
+		docs = append(docs, bson.M{"word": word})
 	}
+	if err := scanner.Err(); err != nil {
+		log.Fatal("scan word list:", err)
+	}
+	fmt.Printf("Fetched %d words.\n", len(docs))
 
 	coll := client.Database(os.Getenv("MONGODB_DB")).Collection("words")
 
