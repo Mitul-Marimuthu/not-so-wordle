@@ -3,7 +3,6 @@ import { authOptions } from '@/lib/auth-options';
 import { connectDB } from '@/lib/db';
 import Game from '@/lib/models/Game';
 import User from '@/lib/models/User';
-import Word from '@/lib/models/Word';
 import { evaluateGuess } from '@/lib/game';
 
 export async function POST(
@@ -30,12 +29,6 @@ export async function POST(
   if (!game) return Response.json({ error: 'game not found' }, { status: 404 });
   if (game.status !== 'in_progress') {
     return Response.json({ error: 'game already finished' }, { status: 409 });
-  }
-
-  // Reject guesses not in the word list — same rule as the real Wordle.
-  const wordExists = await Word.exists({ word: guess });
-  if (!wordExists) {
-    return Response.json({ error: 'not a valid word' }, { status: 422 });
   }
 
   const result = evaluateGuess(guess, game.word);
