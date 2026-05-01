@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { api } from '@/lib/api';
 import { isLoggedIn } from '@/lib/auth';
 import { LeaderboardEntry } from '@/lib/types';
@@ -81,15 +80,6 @@ function LeaderboardRow({ entry, label }: { entry: LeaderboardEntry; label: stri
       <span className="w-6 text-center font-bold text-gray-400">
         {medals[entry.rank] ?? entry.rank}
       </span>
-      {entry.avatar && (
-        <Image
-          src={entry.avatar}
-          alt={entry.name}
-          width={36}
-          height={36}
-          className="rounded-full"
-        />
-      )}
       <span className="flex-1 font-medium">{entry.name}</span>
       <span className="text-sm text-gray-500">
         {entry.score} <span className="text-gray-400">{label}</span>

@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { setToken, getToken, setStoredGameId, getStoredGameId, clearStoredGameId } from '@/lib/auth';
@@ -23,6 +23,9 @@ function GamePage() {
   const [revealingRow, setRevealingRow] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [shake, setShake] = useState(false);
+  // Ref so the animation lock is readable synchronously by the keyboard listener
+  // without waiting for a React re-render + useEffect re-subscription cycle.
+  const isRevealingRef = useRef(false);
 
   // Handle the ?token= query param the Go backend appends after OAuth.
   useEffect(() => {
@@ -69,7 +72,10 @@ function GamePage() {
   }
 
   const handleKeyPress = useCallback(async (key: string) => {
-    if (status !== 'in_progress' || revealingRow !== null) return;
+    // isRevealingRef is checked synchronously here — unlike the revealingRow
+    // state, the ref is updated the instant the animation starts so there is
+    // no window where a stale closure can slip a guess through.
+    if (status !== 'in_progress' || isRevealingRef.current) return;
 
     if (key === 'Backspace') {
       setCurrentInput(prev => prev.slice(0, -1));
@@ -87,6 +93,8 @@ function GamePage() {
         const row = guesses.length;
         const data = await api.submitGuess(gameId!, currentInput);
 
+        // Lock input immediately — before any state update or re-render.
+        isRevealingRef.current = true;
         setRevealingRow(row);
         setGuesses(prev => [
           ...prev,
@@ -95,6 +103,7 @@ function GamePage() {
         setCurrentInput('');
 
         setTimeout(() => {
+          isRevealingRef.current = false;
           setRevealingRow(null);
           setStatus(data.status);
           if (data.status === 'won') {
@@ -121,7 +130,7 @@ function GamePage() {
     if (/^[a-zA-Z]$/.test(key) && currentInput.length < 5) {
       setCurrentInput(prev => prev + key.toLowerCase());
     }
-  }, [status, revealingRow, currentInput, gameId, guesses]);
+  }, [status, currentInput, gameId, guesses]);
 
   // Physical keyboard listener.
   useEffect(() => {

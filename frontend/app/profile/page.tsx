@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { api } from '@/lib/api';
 import { isLoggedIn } from '@/lib/auth';
 import { User, SolvedEntry } from '@/lib/types';
@@ -33,21 +32,9 @@ export default function ProfilePage() {
     <>
       <Header />
       <main className="max-w-xl mx-auto px-4 py-8 flex flex-col gap-8">
-        {/* Avatar + name */}
-        <div className="flex items-center gap-4">
-          {user.avatar && (
-            <Image
-              src={user.avatar}
-              alt={user.name}
-              width={64}
-              height={64}
-              className="rounded-full"
-            />
-          )}
-          <div>
-            <p className="text-xl font-bold">{user.name}</p>
-            <p className="text-sm text-gray-500">{user.email}</p>
-          </div>
+        <div>
+          <p className="text-xl font-bold">{user.name}</p>
+          <p className="text-sm text-gray-500">{user.email}</p>
         </div>
 
         {/* Stats grid */}
