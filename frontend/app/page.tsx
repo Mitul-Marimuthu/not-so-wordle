@@ -1,8 +1,8 @@
 'use client';
-import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSession, signIn } from 'next-auth/react';
 import { api } from '@/lib/api';
-import { setToken, getToken, setStoredGameId, getStoredGameId, clearStoredGameId } from '@/lib/auth';
+import { setStoredGameId, getStoredGameId, clearStoredGameId } from '@/lib/auth';
 import { GuessResult, GameStatus } from '@/lib/types';
 import GameBoard from '@/components/GameBoard';
 import Keyboard from '@/components/Keyboard';
@@ -12,10 +12,8 @@ import Header from '@/components/Header';
 const REVEAL_DURATION = 4 * 300 + 600;
 
 function GamePage() {
-  const searchParams = useSearchParams();
+  const { data: session, status: sessionStatus } = useSession();
 
-  // null = still checking localStorage; true/false = settled
-  const [authed, setAuthed] = useState<boolean | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [guesses, setGuesses] = useState<GuessResult[]>([]);
   const [currentInput, setCurrentInput] = useState('');
@@ -27,20 +25,10 @@ function GamePage() {
   // without waiting for a React re-render + useEffect re-subscription cycle.
   const isRevealingRef = useRef(false);
 
-  // Handle the ?token= query param the Go backend appends after OAuth.
-  useEffect(() => {
-    const token = searchParams.get('token');
-    if (token) {
-      setToken(token);
-      window.history.replaceState({}, '', '/');
-    }
-    setAuthed(!!getToken());
-  }, [searchParams]);
-
   // Once auth is confirmed, start or restore a game.
   useEffect(() => {
-    if (authed) initGame();
-  }, [authed]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (session) initGame();
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function initGame() {
     try {
@@ -142,19 +130,20 @@ function GamePage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleKeyPress]);
 
-  if (authed === null) return null;
+  // Still checking session — render nothing to avoid flicker.
+  if (sessionStatus === 'loading') return null;
 
-  if (!authed) {
+  if (!session) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-6 px-4">
         <h1 className="text-5xl font-bold tracking-widest uppercase">Not Wordle</h1>
         <p className="text-gray-500 text-center">Unlimited play. Real streaks. Global leaderboard.</p>
-        <a
-          href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
+        <button
+          onClick={() => signIn('google')}
           className="px-8 py-3 bg-[#6aaa64] text-white rounded-full font-semibold text-lg hover:bg-green-600 transition-colors"
         >
           Sign in with Google
-        </a>
+        </button>
       </main>
     );
   }
@@ -188,11 +177,6 @@ function GamePage() {
   );
 }
 
-// useSearchParams requires a Suspense boundary in the Next.js App Router.
 export default function Page() {
-  return (
-    <Suspense>
-      <GamePage />
-    </Suspense>
-  );
+  return <GamePage />;
 }

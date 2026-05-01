@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { api } from '@/lib/api';
-import { isLoggedIn } from '@/lib/auth';
 import { LeaderboardEntry } from '@/lib/types';
 import Header from '@/components/Header';
 
@@ -10,16 +10,15 @@ type Tab = 'streak' | 'total';
 
 export default function LeaderboardPage() {
   const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const [tab, setTab] = useState<Tab>('streak');
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push('/');
-      return;
-    }
-  }, [router]);
+    if (sessionStatus === 'loading') return;
+    if (!session) { router.push('/'); return; }
+  }, [session, sessionStatus, router]);
 
   useEffect(() => {
     setEntries([]);

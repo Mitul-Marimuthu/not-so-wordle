@@ -1,25 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { api } from '@/lib/api';
-import { isLoggedIn } from '@/lib/auth';
 import { User, SolvedEntry } from '@/lib/types';
 import Header from '@/components/Header';
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push('/');
-      return;
-    }
+    if (sessionStatus === 'loading') return;
+    if (!session) { router.push('/'); return; }
     api.getProfile()
       .then(setUser)
       .catch(() => setError('Failed to load profile.'));
-  }, [router]);
+  }, [session, sessionStatus, router]);
 
   if (error) {
     return <div className="min-h-screen flex items-center justify-center text-red-500">{error}</div>;

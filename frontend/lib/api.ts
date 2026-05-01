@@ -1,15 +1,10 @@
 import { Game, GuessResponse, User, LeaderboardResponse } from './types';
-import { getToken } from './auth';
-
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers ?? {}),
     },
   });

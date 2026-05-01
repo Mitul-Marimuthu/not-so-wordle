@@ -1,16 +1,12 @@
 'use client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { clearToken, clearStoredGameId } from '@/lib/auth';
+import { signOut } from 'next-auth/react';
+import { clearStoredGameId } from '@/lib/auth';
 
 export default function Header() {
-  const router = useRouter();
-
   function handleSignOut() {
-    clearToken();
     clearStoredGameId();
-    // Force a full navigation so the page re-checks auth state.
-    window.location.href = '/';
+    signOut({ callbackUrl: '/' });
   }
 
   return (
