@@ -9,7 +9,7 @@ GitHub: https://github.com/Mitul-Marimuthu/not-so-wordle
 ## Tech Stack
 
 ### Frontend + Backend — Next.js (TypeScript) on Vercel
-Everything lives in a single Next.js App Router project. The React UI handles the board, keyboard, and animations. Game logic runs in Next.js API routes — no separate backend server. Tailwind CSS handles layout and styling. The frontend never sees the target word — only tile color results come back from the API.
+Everything lives in a single Next.js App Router project. The React UI handles the board, keyboard, and animations. Game logic runs in Next.js API routes — no separate backend server. Tailwind CSS handles layout and styling. The game never sees the target word — only tile color results come back from the API.
 
 ### Auth — NextAuth.js v4 with Google OAuth
 NextAuth handles the full OAuth flow. On first sign-in, a user document is created in MongoDB and the MongoDB `_id` is embedded in the JWT. Every API route calls `getServerSession()` to authenticate the request — no manual token passing required.
@@ -69,7 +69,7 @@ Result codes: `+` = correct position (green), `x` = correct letter wrong positio
 
 ## API Routes
 
-All routes are Next.js API routes under `frontend/app/api/`. Authentication is enforced via `getServerSession(authOptions)` — unauthenticated requests get a `401`.
+All routes are Next.js API routes under `game/app/api/`. Authentication is enforced via `getServerSession(authOptions)` — unauthenticated requests get a `401`.
 
 ### Auth (NextAuth)
 
@@ -106,7 +106,7 @@ All routes are Next.js API routes under `frontend/app/api/`. Authentication is e
 The original Wordle gives one word per day. Unlimited play demonstrates more fullstack depth: session management, per-user state, weighted selection, and a leaderboard that grows over time.
 
 ### Word List: Self-Hosted in MongoDB
-Words from [tabatkins/wordle-list](https://github.com/tabatkins/wordle-list) are seeded into MongoDB once via `frontend/scripts/seed.ts`. This means zero external API dependencies at runtime — no keys, no rate limits, no third-party outage risk.
+Words from [tabatkins/wordle-list](https://github.com/tabatkins/wordle-list) are seeded into MongoDB once via `game/scripts/seed.ts`. This means zero external API dependencies at runtime — no keys, no rate limits, no third-party outage risk.
 
 ```
 npx tsx --env-file=.env.local scripts/seed.ts
@@ -117,10 +117,10 @@ When a player starts a new game, a word is picked using weighted random sampling
 - Words the player **has not yet solved** → weight `1.0`
 - Words the player **has already solved** → weight `0.1`
 
-Players encounter fresh words first, while old words can still reappear occasionally. The logic lives in `frontend/lib/game.ts` (`selectWord`).
+Players encounter fresh words first, while old words can still reappear occasionally. The logic lives in `game/lib/game.ts` (`selectWord`).
 
 ### Guess Evaluation: Two-Pass Algorithm
-The green/yellow/gray computation handles the duplicate-letter edge case correctly (e.g. guessing `SPEED` against `SPELL`). Pass 1 locks in greens, pass 2 assigns yellows only for letters with remaining unmatched occurrences in the target. Lives in `frontend/lib/game.ts` (`evaluateGuess`).
+The green/yellow/gray computation handles the duplicate-letter edge case correctly (e.g. guessing `SPEED` against `SPELL`). Pass 1 locks in greens, pass 2 assigns yellows only for letters with remaining unmatched occurrences in the target. Lives in `game/lib/game.ts` (`evaluateGuess`).
 
 ### Streak = Consecutive Wins
 Since play is not tied to a calendar day, streak is defined as consecutive games won without a loss. A streak resets on any loss. More skill-reflective than a daily streak.
@@ -134,7 +134,7 @@ The entire project — React UI, API routes, OAuth flow, DB calls — deploys as
 
 ```
 wordle/
-└── frontend/                  # Next.js — deployed to Vercel
+└── game/                  # Next.js — deployed to Vercel
     ├── app/
     │   ├── api/
     │   │   ├── auth/[...nextauth]/   # NextAuth catch-all
@@ -164,7 +164,7 @@ wordle/
 
 ## Environment Variables
 
-Create `frontend/.env.local` with:
+Create `game/.env.local` with:
 
 ```
 NEXTAUTH_URL=http://localhost:3000
