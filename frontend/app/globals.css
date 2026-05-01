@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Tile flip: squish to 0 on Y-axis, hold, then expand back.
+   The colour swap happens while the tile is at scaleY(0) and invisible. */
+@keyframes tile-flip {
+  0%        { transform: scaleY(1); }
+  45%, 55%  { transform: scaleY(0); }
+  100%      { transform: scaleY(1); }
+}
+
+/* Brief scale pop when a letter is typed. */
+@keyframes pop {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+
+/* Row shake for invalid words or not-enough-letters. */
+@keyframes shake {
+  0%, 100%     { transform: translateX(0); }
+  20%, 60%     { transform: translateX(-6px); }
+  40%, 80%     { transform: translateX(6px); }
+}
+
+/* Toast notification slide-down. */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-8px) translateX(-50%); }
+  to   { opacity: 1; transform: translateY(0)   translateX(-50%); }
+}
+
+.shake {
+  animation: shake 0.4s ease;
+}
+
+.fade-in {
+  animation: fade-in 0.2s ease forwards;
+}

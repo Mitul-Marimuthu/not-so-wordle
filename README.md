@@ -25,13 +25,11 @@ Handled entirely in Go using `golang.org/x/oauth2`. On successful login the back
 ## MongoDB Collections
 
 ### `words`
-Seeded once from the `goodWords.json` file in the rypmaloney/wordle-api repository. Each document represents a valid 5-letter word.
+Seeded once from the [tabatkins/wordle-list](https://github.com/tabatkins/wordle-list) repository — the original Wordle valid-guess list extracted from the NYT source code (~8,000 words). Each document stores a single 5-letter word.
 
 ```json
 {
-  "word": "crane",
-  "definition": "a large, tall machine used for moving heavy objects",
-  "partOfSpeech": "noun"
+  "word": "crane"
 }
 ```
 
@@ -108,12 +106,12 @@ Result codes: `+` = correct position (green), `x` = correct letter wrong positio
 The original Wordle gives one word per day. For this project, unlimited play was chosen deliberately — it better demonstrates fullstack depth (session management, per-user state, weighted selection logic) and makes the leaderboard more dynamic and meaningful over time.
 
 ### Word List: Self-Hosted in MongoDB
-Rather than depending on a third-party API (like the RapidAPI Wordle API) for word selection and validation, the word list from [rypmaloney/wordle-api](https://github.com/rypmaloney/wordle-api) is seeded into MongoDB once via a Go migration script. This means:
+Rather than depending on a third-party API (like the RapidAPI Wordle API) for word selection and validation, the word list from [tabatkins/wordle-list](https://github.com/tabatkins/wordle-list) is seeded into MongoDB once via a Go migration script (`go run ./seed`). This means:
 - Zero external dependencies at runtime for word logic
-- Full control over the word set
+- Full control over the word set (~8,000 valid Wordle guesses from the original NYT source)
 - No API keys, rate limits, or outage risk from a third party
 
-The `goodWords.json` file from that repo contains 5-letter words with definitions and parts of speech, which also allows the UI to optionally show a word's definition after a game ends.
+The word list is plain text (one word per line), so the seed script parses it with a line scanner rather than a JSON decoder.
 
 ### Weighted Word Selection
 When a player starts a new game, the backend selects a word using weighted random sampling:
@@ -154,4 +152,4 @@ wordle/
 
 ## Word List Source
 
-Words sourced from [rypmaloney/wordle-api](https://github.com/rypmaloney/wordle-api) — an Express/Postgres Wordle API whose `goodWords.json` word list is used here as a one-time seed for the MongoDB `words` collection.
+Words sourced from [tabatkins/wordle-list](https://github.com/tabatkins/wordle-list) — the original Wordle valid-guess list extracted from the NYT source code. Used as a one-time seed for the MongoDB `words` collection via `go run ./seed`.
