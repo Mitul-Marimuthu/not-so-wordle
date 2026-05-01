@@ -5,8 +5,8 @@ import { TileState } from '@/lib/types';
 interface TileProps {
   letter: string;
   state: TileState;
-  position: number;  // 0-4, used to stagger the flip delay
-  animating: boolean; // true while this tile's row is being revealed
+  position: number;   // 0-4, used to stagger the flip
+  animating: boolean; // true while this row is being revealed
 }
 
 const COLORS: Record<TileState, string> = {
@@ -19,18 +19,17 @@ const COLORS: Record<TileState, string> = {
 
 const isResult = (s: TileState) => s === 'correct' || s === 'present' || s === 'absent';
 
+const STAGGER = 300;   // ms between tiles
+const DURATION = 600;  // ms per tile flip
+
 export default function Tile({ letter, state, position, animating }: TileProps) {
-  // `revealed` controls which colour is shown. It lags behind `state` by
-  // half the flip animation duration so the colour swap happens while the
-  // tile is edge-on and invisible to the player.
+  // `revealed` lags behind `state` so the colour swap happens while the tile
+  // is edge-on (scaleY 0) and invisible to the player.
   const [revealed, setRevealed] = useState<TileState>(state);
 
   useEffect(() => {
     if (isResult(state) && animating) {
-      // Switch colour at the midpoint of this tile's animation.
-      // Each tile starts its 600 ms flip after (position × 300) ms.
-      // Midpoint = delay + 300 ms.
-      const mid = position * 300 + 300;
+      const mid = position * STAGGER + DURATION / 2;
       const t = setTimeout(() => setRevealed(state), mid);
       return () => clearTimeout(t);
     } else {
@@ -39,10 +38,9 @@ export default function Tile({ letter, state, position, animating }: TileProps) 
   }, [state, animating, position]);
 
   const flipStyle = animating && isResult(state)
-    ? { animation: `tile-flip 0.6s ease ${position * 300}ms both` }
+    ? { animation: `tile-flip ${DURATION}ms ease ${position * STAGGER}ms both` }
     : undefined;
 
-  // Small pop when a letter is typed (filled state appearing).
   const popStyle = state === 'filled' && letter
     ? { animation: 'pop 0.1s ease' }
     : undefined;
@@ -50,7 +48,7 @@ export default function Tile({ letter, state, position, animating }: TileProps) 
   return (
     <div
       className={`w-14 h-14 flex items-center justify-center text-2xl font-bold uppercase select-none ${COLORS[revealed]}`}
-      style={flipStyle ?? popStyle}
+      style={{ willChange: 'transform', ...(flipStyle ?? popStyle) }}
     >
       {letter}
     </div>

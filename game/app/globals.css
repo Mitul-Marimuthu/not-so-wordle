@@ -18,8 +18,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Tile flip: squish to 0 on Y-axis, hold, then expand back.
-   The colour swap happens while the tile is at scaleY(0) and invisible. */
+/* Wordle-style flip: tile squishes to nothing, colour swaps while invisible, then opens back up. */
 @keyframes tile-flip {
   0%        { transform: scaleY(1); }
   45%, 55%  { transform: scaleY(0); }

@@ -34,12 +34,15 @@ const KEY_COLORS: Record<TileState, string> = {
 
 interface KeyboardProps {
   guesses: GuessResult[];
+  revealingRow: number | null;
   onKey: (key: string) => void;
   locked?: boolean;
 }
 
-export default function Keyboard({ guesses, onKey, locked = false }: KeyboardProps) {
-  const letterStates = getLetterStates(guesses);
+export default function Keyboard({ guesses, revealingRow, onKey, locked = false }: KeyboardProps) {
+  // Exclude the animating row so keyboard colours don't jump ahead of the tiles.
+  const settled = revealingRow === null ? guesses : guesses.slice(0, revealingRow);
+  const letterStates = getLetterStates(settled);
 
   return (
     <div className="flex flex-col items-center gap-1.5 w-full max-w-md px-1">

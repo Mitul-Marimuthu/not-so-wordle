@@ -6,7 +6,7 @@ interface GameBoardProps {
   guesses: GuessResult[];
   currentInput: string;
   revealingRow: number | null;
-  shake: boolean; // shakes the current row on an invalid guess
+  shake: boolean;
 }
 
 function resultToState(r: string): TileState {
@@ -25,10 +25,7 @@ export default function GameBoard({ guesses, currentInput, revealingRow, shake }
         const isShaking = shake && isCurrentRow;
 
         return (
-          <div
-            key={row}
-            className={`flex gap-1.5 ${isShaking ? 'shake' : ''}`}
-          >
+          <div key={row} className={`flex gap-1.5 ${isShaking ? 'shake' : ''}`}>
             {Array.from({ length: 5 }, (_, col) => {
               let letter = '';
               let state: TileState = 'empty';

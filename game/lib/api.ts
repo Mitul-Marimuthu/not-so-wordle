@@ -35,4 +35,7 @@ export const api = {
 
   getLeaderboard: (type: 'streak' | 'total') =>
     request<LeaderboardResponse>(`/api/leaderboard/${type}`),
+
+  getWords: () =>
+    request<{ words: string[] }>('/api/words'),
 };
