@@ -77,12 +77,13 @@ function GamePage() {
         setTimeout(() => setShake(false), 400);
         return;
       }
+      // Lock before the API call so a second Enter during the network
+      // round-trip can't slip through.
+      isRevealingRef.current = true;
       try {
         const row = guesses.length;
         const data = await api.submitGuess(gameId!, currentInput);
 
-        // Lock input immediately — before any state update or re-render.
-        isRevealingRef.current = true;
         setRevealingRow(row);
         setGuesses(prev => [
           ...prev,
@@ -103,6 +104,8 @@ function GamePage() {
           }
         }, REVEAL_DURATION);
       } catch (err: unknown) {
+        // Unlock on error so the player can try again.
+        isRevealingRef.current = false;
         const msg = err instanceof Error ? err.message : 'Something went wrong';
         if (msg.includes('not a valid word')) {
           showMessage('Not in word list');
