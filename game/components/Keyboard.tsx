@@ -41,9 +41,9 @@ export default function Keyboard({ guesses, onKey }: KeyboardProps) {
   const letterStates = getLetterStates(guesses);
 
   return (
-    <div className="flex flex-col items-center gap-1.5 w-full max-w-md px-2">
+    <div className="flex flex-col items-center gap-1.5 w-full max-w-md px-1">
       {ROWS.map((row, i) => (
-        <div key={i} className="flex gap-1.5 justify-center">
+        <div key={i} className="flex gap-1 w-full justify-center">
           {row.map((key) => {
             const state = letterStates[key] ?? 'empty';
             const isWide = key === 'Enter' || key === '←';
@@ -52,8 +52,8 @@ export default function Keyboard({ guesses, onKey }: KeyboardProps) {
                 key={key}
                 onClick={() => onKey(key === '←' ? 'Backspace' : key)}
                 className={`
-                  ${isWide ? 'w-16' : 'w-10'} h-14 rounded font-bold text-sm
-                  border select-none cursor-pointer
+                  ${isWide ? 'flex-[1.5]' : 'flex-1'} h-14 rounded font-bold text-sm
+                  border select-none cursor-pointer min-w-0
                   active:opacity-70 transition-colors
                   ${KEY_COLORS[state]}
                 `}
