@@ -9,14 +9,15 @@ GitHub: https://github.com/Mitul-Marimuthu/not-so-wordle
 ## Tech Stack
 
 ### Frontend + Backend — Next.js (TypeScript) on Vercel
-Everything lives in a single Next.js App Router project. The React UI handles the board, keyboard, and animations. Game logic runs in Next.js API routes — no separate backend server. Tailwind CSS handles layout and styling. The game never sees the target word — only tile color results come back from the API.
+Everything lives in a single Next.js App Router project. The React UI handles the board, keyboard, and animations. Game logic runs in Next.js API routes - no separate backend server. Tailwind CSS handles layout and styling. The game never sees the target word - only tile color results come back from the API.
 
 ### Auth — NextAuth.js v4 with Google OAuth
 NextAuth handles the full OAuth flow. On first sign-in, a user document is created in MongoDB and the MongoDB `_id` is embedded in the JWT. Every API route calls `getServerSession()` to authenticate the request — no manual token passing required.
 
 ### Database — MongoDB Atlas with Mongoose
-Two concerns:
-- **Word storage**: all valid 5-letter words seeded once from [tabatkins/wordle-list](https://github.com/tabatkins/wordle-list)
+Two features:
+- **Word storage**: all valid 5-letter words seeded once from [https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official/official_allowed_guesses.txt] and
+[https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official/shuffled_real_wordles.txt]
 - **Player records**: profiles, game history, streaks
 
 ---
