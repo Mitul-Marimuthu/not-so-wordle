@@ -55,9 +55,10 @@ function GamePage() {
         }
       }
       const { gameId: newId } = await api.newGame();
+      const game = await api.getGame(newId);
       setGameId(newId);
       setStoredGameId(newId);
-      setGuesses([]);
+      setGuesses(game.guesses);
       setStatus('in_progress');
       setCurrentInput('');
     } catch {
