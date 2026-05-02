@@ -20,7 +20,12 @@ export async function POST() {
   // Sort by startedAt desc so all devices consistently land on the same game.
   const existing = await Game.findOne({ userId, status: 'in_progress' }).sort({ startedAt: -1 });
   if (existing) {
-    return Response.json({ gameId: existing._id.toString(), status: existing.status });
+    return Response.json({
+      gameId: existing._id.toString(),
+      status: existing.status,
+      guesses: existing.guesses,
+      startedAt: existing.startedAt,
+    });
   }
 
   // Fetch user's solved words so selectWord can weight fresh words higher.
@@ -51,5 +56,10 @@ export async function POST() {
     { upsert: true, new: true },
   );
 
-  return Response.json({ gameId: game._id.toString(), status: game.status });
+  return Response.json({
+    gameId: game._id.toString(),
+    status: game.status,
+    guesses: game.guesses,
+    startedAt: game.startedAt,
+  });
 }

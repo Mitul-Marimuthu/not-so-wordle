@@ -1,4 +1,4 @@
-import { Game, GuessResponse, User, LeaderboardResponse } from './types';
+import { Game, GuessResult, GuessResponse, User, LeaderboardResponse } from './types';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
@@ -19,7 +19,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   newGame: () =>
-    request<{ gameId: string; status: string }>('/api/games/new', { method: 'POST' }),
+    request<{ gameId: string; status: string; guesses: GuessResult[]; startedAt: string }>('/api/games/new', { method: 'POST' }),
 
   getGame: (id: string) =>
     request<Game>(`/api/games/${id}`),

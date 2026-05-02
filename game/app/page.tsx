@@ -79,28 +79,37 @@ function GamePage() {
     if (session) initGame();
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function initGame() {
-    setStatus('in_progress');
+  async function initGame(fresh = false) {
+    // Optimistic reset only when explicitly starting fresh (Play Again).
+    // Session-refetch restores must not wipe state the user is actively using.
+    if (fresh) {
+      setStatus('in_progress');
+      setGuesses([]);
+      setCurrentInput('');
+      setGameId(null);
+      setInputLocked(true);
+    }
+
     try {
       const storedId = getStoredGameId();
       if (storedId) {
         const game = await api.getGame(storedId);
         if (game.status === 'in_progress') {
-          setGameId(storedId);
           setGuesses(game.guesses);
-          // Don't touch currentInput — user may be mid-type when a session
-          // refetch triggers initGame (e.g. returning to the tab).
+          setGameId(storedId);
+          setInputLocked(false);
           return;
         }
       }
-      const { gameId: newId } = await api.newGame();
-      const game = await api.getGame(newId);
-      setGameId(newId);
-      setStoredGameId(newId);
-      setGuesses(game.guesses);
-      setCurrentInput('');
+      // newGame now returns full state — no second fetch needed.
+      const newGame = await api.newGame();
+      setGuesses(newGame.guesses);
+      setGameId(newGame.gameId);
+      setStoredGameId(newGame.gameId);
+      setInputLocked(false);
     } catch {
       showMessage('Could not start game. Is the backend running?', 4000);
+      setInputLocked(false);
     }
   }
 
@@ -237,7 +246,7 @@ function GamePage() {
                 <p className="text-gray-400 text-sm">{resultGuesses} / 6 guesses</p>
               )}
               <button
-                onClick={initGame}
+                onClick={() => initGame(true)}
                 className="mt-2 w-full py-3 bg-[#6aaa64] text-white rounded-full font-semibold text-lg hover:bg-green-600 transition-colors"
               >
                 Play Again
