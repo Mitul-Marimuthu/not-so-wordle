@@ -15,14 +15,17 @@ export async function GET(
   const { id } = await params;
   await connectDB();
 
-  // Exclude the `word` field — the answer never leaves the server.
-  const game = await Game.findOne({ _id: id, userId: session.user.id }).select('-word');
+  const game = await Game.findOne({ _id: id, userId: session.user.id });
   if (!game) return Response.json({ error: 'game not found' }, { status: 404 });
 
-  return Response.json({
+  const body: Record<string, unknown> = {
     id: game._id.toString(),
     guesses: game.guesses,
     status: game.status,
     startedAt: game.startedAt,
-  });
+  };
+  // Only reveal the answer once the game is over.
+  if (game.status !== 'in_progress') body.word = game.word;
+
+  return Response.json(body);
 }

@@ -30,6 +30,8 @@ function GamePage() {
   // Word list loaded once into a Set for O(1) client-side validation.
   // Falls back to server-side validation if the fetch hasn't completed yet.
   const wordSetRef = useRef<Set<string>>(new Set());
+  // Mirrors guesses so the poll interval can compare without re-creating on every guess.
+  const guessesRef = useRef<GuessResult[]>([]);
 
   useEffect(() => {
     if (!session) return;
@@ -37,6 +39,40 @@ function GamePage() {
       .then(({ words }) => { wordSetRef.current = new Set(words); })
       .catch(() => {});
   }, [session]);
+
+  // Keep ref in sync so the poll interval always sees the latest guesses.
+  useEffect(() => { guessesRef.current = guesses; }, [guesses]);
+
+  // Poll every 4 s while a game is in progress to sync guesses from other devices.
+  useEffect(() => {
+    if (!gameId || status !== 'in_progress') return;
+
+    const intervalId = setInterval(async () => {
+      if (isRevealingRef.current) return; // skip during local animation
+      try {
+        const game = await api.getGame(gameId);
+
+        // Nothing changed — bail immediately to avoid any state updates
+        // that could interfere with in-progress typing.
+        if (game.guesses.length === guessesRef.current.length && game.status === 'in_progress') return;
+
+        if (game.guesses.length > guessesRef.current.length) {
+          setGuesses(game.guesses);
+        }
+
+        if (game.status !== 'in_progress') {
+          setGuesses(game.guesses);
+          setStatus(game.status);
+          setResultWord(game.word ?? '');
+          setResultGuesses(game.guesses.length);
+          // Don't clear currentInput — the modal covers it, and initGame clears it on Play Again.
+          clearStoredGameId();
+        }
+      } catch { /* network blip — try again next tick */ }
+    }, 4000);
+
+    return () => clearInterval(intervalId);
+  }, [gameId, status]);
 
   // Once auth is confirmed, start or restore a game.
   useEffect(() => {
@@ -52,7 +88,8 @@ function GamePage() {
         if (game.status === 'in_progress') {
           setGameId(storedId);
           setGuesses(game.guesses);
-          setCurrentInput('');
+          // Don't touch currentInput — user may be mid-type when a session
+          // refetch triggers initGame (e.g. returning to the tab).
           return;
         }
       }

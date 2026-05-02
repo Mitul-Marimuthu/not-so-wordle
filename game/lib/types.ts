@@ -12,6 +12,7 @@ export interface Game {
   guesses: GuessResult[];
   status: GameStatus;
   startedAt: string;
+  word?: string; // only present when status !== 'in_progress'
 }
 
 export interface GuessResponse {
