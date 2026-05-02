@@ -17,11 +17,27 @@ export default function ProfilePage() {
     if (!session) { router.push('/'); return; }
     api.getProfile()
       .then(setUser)
-      .catch(() => setError('Failed to load profile.'));
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError(msg);
+      });
   }, [session, sessionStatus, router]);
 
   if (error) {
-    return <div className="min-h-screen flex items-center justify-center text-red-500">{error}</div>;
+    const isAuthError = error.includes('401') || error.toLowerCase().includes('unauthorized');
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+        <p className="text-red-500 text-sm font-medium">
+          {isAuthError ? 'Session out of date.' : 'Failed to load profile.'}
+        </p>
+        {isAuthError && (
+          <p className="text-gray-400 text-sm text-center">
+            Sign out and sign back in to refresh your session.
+          </p>
+        )}
+        <p className="text-gray-300 text-xs font-mono">{error}</p>
+      </div>
+    );
   }
   if (!user) {
     return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading...</div>;

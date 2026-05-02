@@ -16,15 +16,18 @@ export async function POST() {
   await connectDB();
   const userId = new mongoose.Types.ObjectId(session.user.id);
 
-  // Return the existing in-progress game rather than creating a duplicate.
-  const existing = await Game.findOne({ userId, status: 'in_progress' });
+  // Fast path: return existing in-progress game without touching word list.
+  // Sort by startedAt desc so all devices consistently land on the same game.
+  const existing = await Game.findOne({ userId, status: 'in_progress' }).sort({ startedAt: -1 });
   if (existing) {
     return Response.json({ gameId: existing._id.toString(), status: existing.status });
   }
 
-  // Fetch user's solved words so SelectWord can weight fresh words higher.
-  const user = await User.findById(userId).select('solvedWords');
-  const allWords = await Word.find({}, 'word').lean() as { word: string }[];
+  // Fetch user's solved words so selectWord can weight fresh words higher.
+  const [user, allWords] = await Promise.all([
+    User.findById(userId).select('solvedWords'),
+    Word.find({}, 'word').lean() as Promise<{ word: string }[]>,
+  ]);
 
   if (allWords.length === 0) {
     return Response.json({ error: 'word list is empty — run the seed script' }, { status: 500 });
@@ -32,13 +35,21 @@ export async function POST() {
 
   const word = selectWord(allWords.map(w => w.word), user?.solvedWords ?? []);
 
-  const game = await Game.create({
-    userId,
-    word, // stored in DB, never returned to the client
-    guesses: [],
-    status: 'in_progress',
-    startedAt: new Date(),
-  });
+  // Atomic upsert — if two requests race past the fast-path check above,
+  // $setOnInsert ensures only one document is ever created.
+  const game = await Game.findOneAndUpdate(
+    { userId, status: 'in_progress' },
+    {
+      $setOnInsert: {
+        userId,
+        word,
+        guesses: [],
+        status: 'in_progress',
+        startedAt: new Date(),
+      },
+    },
+    { upsert: true, new: true },
+  );
 
   return Response.json({ gameId: game._id.toString(), status: game.status });
 }

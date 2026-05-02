@@ -22,6 +22,8 @@ function GamePage() {
   const [message, setMessage] = useState('');
   const [shake, setShake] = useState(false);
   const [inputLocked, setInputLocked] = useState(false);
+  const [resultWord, setResultWord] = useState('');
+  const [resultGuesses, setResultGuesses] = useState(0);
   // Ref mirrors inputLocked — lets the keydown listener check it synchronously
   // without waiting for a React re-render cycle.
   const isRevealingRef = useRef(false);
@@ -42,6 +44,7 @@ function GamePage() {
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function initGame() {
+    setStatus('in_progress');
     try {
       const storedId = getStoredGameId();
       if (storedId) {
@@ -49,7 +52,6 @@ function GamePage() {
         if (game.status === 'in_progress') {
           setGameId(storedId);
           setGuesses(game.guesses);
-          setStatus('in_progress');
           setCurrentInput('');
           return;
         }
@@ -59,7 +61,6 @@ function GamePage() {
       setGameId(newId);
       setStoredGameId(newId);
       setGuesses(game.guesses);
-      setStatus('in_progress');
       setCurrentInput('');
     } catch {
       showMessage('Could not start game. Is the backend running?', 4000);
@@ -115,11 +116,9 @@ function GamePage() {
           setInputLocked(false);
           setRevealingRow(null);
           setStatus(data.status);
-          if (data.status === 'won') {
-            showMessage('Brilliant! 🎉', 3000);
-            clearStoredGameId();
-          } else if (data.status === 'lost') {
-            showMessage(`The word was: ${data.word?.toUpperCase()}`, 4000);
+          if (data.status !== 'in_progress') {
+            setResultWord(data.word ?? '');
+            setResultGuesses(row + 1);
             clearStoredGameId();
           }
         }, REVEAL_TOTAL);
@@ -186,13 +185,28 @@ function GamePage() {
           shake={shake}
         />
         <Keyboard guesses={guesses} revealingRow={revealingRow} onKey={handleKeyPress} locked={inputLocked} />
+
+        {/* End-of-game modal */}
         {(status === 'won' || status === 'lost') && (
-          <button
-            onClick={initGame}
-            className="mt-6 px-8 py-2.5 bg-[#6aaa64] text-white rounded-full font-semibold hover:bg-green-600 transition-colors"
-          >
-            Play Again
-          </button>
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+            <div className="bg-white rounded-2xl px-10 py-8 flex flex-col items-center gap-4 shadow-2xl w-full max-w-sm">
+              <p className="text-lg font-semibold text-gray-500 uppercase tracking-widest text-sm">
+                {status === 'won' ? 'You got it!' : 'Better luck next time'}
+              </p>
+              <p className="text-6xl font-bold tracking-widest uppercase text-[#6aaa64]">
+                {resultWord}
+              </p>
+              {status === 'won' && (
+                <p className="text-gray-400 text-sm">{resultGuesses} / 6 guesses</p>
+              )}
+              <button
+                onClick={initGame}
+                className="mt-2 w-full py-3 bg-[#6aaa64] text-white rounded-full font-semibold text-lg hover:bg-green-600 transition-colors"
+              >
+                Play Again
+              </button>
+            </div>
+          </div>
         )}
       </main>
     </>

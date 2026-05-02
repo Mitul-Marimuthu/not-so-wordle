@@ -11,8 +11,9 @@ export async function GET() {
 
   await connectDB();
 
-  // Omit solvedWords — it's a large internal array the UI doesn't need.
-  const user = await User.findById(session.user.id).select('-solvedWords');
+  const user = await User.findById(session.user.id)
+    .select('name email totalSolved currentStreak longestStreak history')
+    .lean();
   if (!user) return Response.json({ error: 'user not found' }, { status: 404 });
 
   return Response.json(user);
