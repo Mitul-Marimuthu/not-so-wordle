@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 // This URL specifically points to the curated ANSWER list (~2,300 words)
 const OFFICIAL_ANSWERS_URL = 
   'https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official/shuffled_real_wordles.txt';
+const OFFICIAL_GUESSES_URL =
+  'https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official/official_allowed_guesses.txt'
   //'https://gist.githubusercontent.com/cfreshman/3c5fb8b416b233e3c3a99e9d6afb164c/raw/wordle-answers-alphabetical.txt';
 // const OFFICIAL_ANSWERS_URL =
 //   'https://raw.githubusercontent.com/tabatkins/wordle-list/main/answers';
@@ -17,15 +19,17 @@ async function main() {
   await mongoose.connect(uri, { dbName: process.env.MONGODB_DB ?? 'wordle' });
   console.log('Connected to MongoDB');
 
-  // --- STEP 1: CLEAR THE OLD LIST ---
+  //--- STEP 1: CLEAR THE OLD LIST ---
   // console.log('Wiping existing words from database...');
   // await Word.deleteMany({});
 
   // --- STEP 2: FETCH THE OFFICIAL ANSWERS ---
   console.log('Fetching official Wordle answer list...');
-  const res = await fetch(OFFICIAL_ANSWERS_URL);
-  if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+  // const res = await fetch(OFFICIAL_ANSWERS_URL);
+  // if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
 
+  const res = await fetch(OFFICIAL_GUESSES_URL);
+  if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
   const text = await res.text();
   const words = text
     .split('\n')
