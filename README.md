@@ -8,16 +8,15 @@ GitHub: https://github.com/Mitul-Marimuthu/not-so-wordle
 
 ## Tech Stack
 
-### Frontend + Backend — Next.js (TypeScript) on Vercel
+### Frontend + Backend - Next.js (TypeScript) on Vercel
 Everything lives in a single Next.js App Router project. The React UI handles the board, keyboard, and animations. Game logic runs in Next.js API routes - no separate backend server. Tailwind CSS handles layout and styling. The game never sees the target word - only tile color results come back from the API.
 
-### Auth — NextAuth.js v4 with Google OAuth
+### Auth - NextAuth.js v4 with Google OAuth
 NextAuth handles the full OAuth flow. On first sign-in, a user document is created in MongoDB and the MongoDB `_id` is embedded in the JWT. Every API route calls `getServerSession()` to authenticate the request — no manual token passing required.
 
-### Database — MongoDB Atlas with Mongoose
+### Database - MongoDB Atlas with Mongoose
 Two features:
-- **Word storage**: all valid 5-letter words seeded once from [https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official/official_allowed_guesses.txt] and
-[https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official/shuffled_real_wordles.txt]
+- **Word storage**: all valid 5-letter words seeded once from [offical wordle list](https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official)
 - **Player records**: profiles, game history, streaks
 
 ---
@@ -25,7 +24,7 @@ Two features:
 ## MongoDB Collections
 
 ### `words`
-Seeded once from the [tabatkins/wordle-list](https://github.com/tabatkins/wordle-list) repository — the original Wordle valid-guess list extracted from the NYT source code (~8,000 words).
+Seeded once from the [official wordle list/real answers](https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official/shuffled_real_wordles.txt) — the original Wordle valid-answer list extracted from the NYT source code (~2,000 words) and from them [offical wordle list/valid guesses](https://raw.githubusercontent.com/Kinkelin/WordleCompetition/main/data/official/official_allowed_guesses.txt) - the valid guess list that wordle uses, also extrated from the NYT source code (~11,000 words) for a total of ~13,000 valid words. 
 
 ```json
 { "word": "crane" }
@@ -99,15 +98,21 @@ All routes are Next.js API routes under `game/app/api/`. Authentication is enfor
 | `GET` | `/api/leaderboard/streak` | Top 10 players by `longestStreak`. |
 | `GET` | `/api/leaderboard/total` | Top 10 players by `totalSolved`. |
 
+### Words
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/words` | Retrieves all words once after a session starts to local memory for quicker guess validation. |
+
+
 ---
 
 ## Design Decisions
 
 ### Unlimited Play (not daily)
-The original Wordle gives one word per day. Unlimited play demonstrates more fullstack depth: session management, per-user state, weighted selection, and a leaderboard that grows over time.
+The original Wordle gives one word per day. Unlimited play demonstrates more fullstack depth: session management, per-user state, and a leaderboard that grows over time.
 
 ### Word List: Self-Hosted in MongoDB
-Words from [tabatkins/wordle-list](https://github.com/tabatkins/wordle-list) are seeded into MongoDB once via `game/scripts/seed.ts`. This means zero external API dependencies at runtime — no keys, no rate limits, no third-party outage risk.
+Words are seeded into MongoDB once via `game/scripts/seed.ts`. This means zero external API dependencies at runtime - no keys, no rate limits, no third-party outage risk.
 
 ```
 npx tsx --env-file=.env.local scripts/seed.ts
@@ -145,7 +150,8 @@ wordle/
     │   │   │       ├── route.ts      # GET: game state
     │   │   │       └── guess/        # POST: submit guess
     │   │   ├── profile/              # GET: user stats
-    │   │   └── leaderboard/[type]/   # GET: top 10
+    │   │   ├── leaderboard/[type]/   # GET: top 10
+    |   |   └── words/                # GET: retrieve words
     │   ├── leaderboard/
     │   ├── profile/
     │   └── page.tsx                  # Main game page
